@@ -300,24 +300,135 @@
         .tab-content.active {
             display: block;
         }
+        /* Hamburger Menu */
+        .hamburger {
+            display: none;
+            flex-direction: column;
+            cursor: pointer;
+            gap: 6px;
+            background: none;
+            border: none;
+            padding: 0;
+            margin: 0;
+        }
+        .hamburger span {
+            width: 28px;
+            height: 3px;
+            background: var(--text);
+            border-radius: 2px;
+            transition: all 0.3s ease;
+        }
+        .hamburger.active span:nth-child(1) {
+            transform: rotate(45deg) translate(8px, 8px);
+        }
+        .hamburger.active span:nth-child(2) {
+            opacity: 0;
+        }
+        .hamburger.active span:nth-child(3) {
+            transform: rotate(-45deg) translate(7px, -7px);
+        }
+        .nav-menu {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        .nav-links {
+            display: flex;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+        /* Mobile Responsive */
+        @media (max-width: 768px) {
+            .hamburger {
+                display: flex;
+            }
+            .nav-main {
+                flex-direction: column;
+                align-items: flex-start;
+                width: 100%;
+            }
+            .nav-menu {
+                width: 100%;
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 0;
+                max-height: 0;
+                overflow: hidden;
+                transition: max-height 0.3s ease;
+            }
+            .nav-menu.active {
+                max-height: 500px;
+                gap: 15px;
+            }
+            .nav-links {
+                flex-direction: column;
+                width: 100%;
+                gap: 0;
+                padding: 10px 0;
+            }
+            .nav-links li {
+                width: 100%;
+            }
+            .nav-links a {
+                display: block;
+                padding: 12px 0;
+                border-radius: 0;
+            }
+            nav ul {
+                flex-direction: column;
+                gap: 0;
+            }
+            .container {
+                padding: 15px;
+            }
+            .card {
+                padding: 20px;
+            }
+            nav {
+                padding: 16px;
+            }
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <nav>
             <div class="nav-main">
-                <ul>
-                    <li><a href="/" class="{% if request.url.path == '/' %}active{% endif %}">Inicio</a></li>
-                    <li><a href="/prediction" class="{% if request.url.path.startswith('/prediction') %}active{% endif %}">Predicción</a></li>
-                    <li><a href="/comparison" class="{% if request.url.path.startswith('/comparison') %}active{% endif %}">Comparación</a></li>
-                    <li><a href="/analysis" class="{% if request.url.path.startswith('/analysis') %}active{% endif %}">Análisis</a></li>
-                </ul>
-                <button id="themeToggle" class="mode-toggle">Modo Oscuro</button>
+                <button class="hamburger" id="hamburger">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </button>
+                <div class="nav-menu" id="navMenu">
+                    <ul class="nav-links">
+                        <li><a href="/" class="{% if request.url.path == '/' %}active{% endif %}">Inicio</a></li>
+                        <li><a href="/prediction" class="{% if request.url.path.startswith('/prediction') %}active{% endif %}">Predicción</a></li>
+                        <li><a href="/comparison" class="{% if request.url.path.startswith('/comparison') %}active{% endif %}">Comparación</a></li>
+                        <li><a href="/analysis" class="{% if request.url.path.startswith('/analysis') %}active{% endif %}">Análisis</a></li>
+                    </ul>
+                    <button id="themeToggle" class="mode-toggle">Modo Oscuro</button>
+                </div>
             </div>
         </nav>
         {% block content %}{% endblock %}
     </div>
     <script>
+        const hamburger = document.getElementById('hamburger');
+        const navMenu = document.getElementById('navMenu');
+        
+        hamburger.addEventListener('click', () => {
+            hamburger.classList.toggle('active');
+            navMenu.classList.toggle('active');
+        });
+        
+        // Cerrar menú al hacer clic en un enlace
+        document.querySelectorAll('.nav-links a').forEach(link => {
+            link.addEventListener('click', () => {
+                hamburger.classList.remove('active');
+                navMenu.classList.remove('active');
+            });
+        });
+        
         const themeToggle = document.getElementById('themeToggle');
         const storedTheme = localStorage.getItem('themeMode');
         const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
