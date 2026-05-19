@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+
+{% block title %}Mass Prediction - Compare Datasets{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h1>Comparación de Predicciones - 2 Conjuntos de Datos</h1>
+    <p style="color: var(--muted); margin-bottom: 20px;">
+        Sube dos conjuntos de datos CSV para comparar las predicciones de ocupación entre ellos usando todos los modelos disponibles.
+    </p>
+    <p style="color: var(--muted); font-size: 14px; margin-bottom: 20px;">
+        Columnas esperadas: Temperatura, Humedad, Luz, CO2, Índice de Humedad
+    </p>
+    
+    <div class="grid">
+        <div class="file-upload">
+            <h3>Dataset 1</h3>
+            <input type="file" id="file1" accept=".csv">
+            <label for="file1">Click to select CSV file</label>
+            <p id="fileName1" style="margin-top: 10px; color: var(--muted);"></p>
+        </div>
+        
+        <div class="file-upload">
+            <h3>Dataset 2</h3>
+            <input type="file" id="file2" accept=".csv">
+            <label for="file2">Click to select CSV file</label>
+            <p id="fileName2" style="margin-top: 10px; color: var(--muted);"></p>
+        </div>
+    </div>
+    
+    <button onclick="compareDatasets()">Comparar Datasets</button>
+    <button onclick="clearResults()" class="secondary">Clear</button>
+    
+    <div id="results" style="display: none;"></div>
+</div>
+
+<script>
+document.getElementById('file1').addEventListener('change', function(e) {
+    document.getElementById('fileName1').textContent = e.target.files[0]?.name || '';
+});
+
+document.getElementById('file2').addEventListener('change', function(e) {
+    document.getElementById('fileName2').textContent = e.target.files[0]?.name || '';
+});
+
+async function compareDatasets() {
+    const file1 = document.getElementById('file1').files[0];
+    const file2 = document.getElementById('file2').files[0];
+    
+    if (!file1 || !file2) {
+        alert('Please select both CSV files');
+        return;
+    }
+    
+    const formData = new FormData();
+    formData.append('file1', file1);
+    formData.append('file2', file2);
+    
+    try {
+        const response = await fetch('/mass/predict', {
+            method: 'POST',
+            body: formData
+        });
+        const data = await response.json().catch(() => null);
+        if (!response.ok || data?.error || data?.detail) {
+            alert('Error: ' + ((data && (data.error || data.detail)) || response.statusText));
+            return;
+        }
+        displayResults(data);
+    } catch (error) {
+        alert('Error comparing datasets: ' + error.message);
+    }
+}
+
+function displayResults(data) {
+    const resultsDiv = document.getElementById('results');
+    resultsDiv.style.display = 'block';
+    
+    const modelNames = {
+        'xgboost': 'XGBoost',
+        'decision_tree': 'Decision Tree',
+        'neural_network': 'Neural Networks',
+        'naive_bayes': 'Naive Bayes',
+        'logistic_regression': 'Logistic Regression'
+    };
+    
+    let html = `
+        <div class="card" style="margin-top: 20px;">
+            <h2>Comparison Results</h2>
+            <table>
+                <tr>
+                    <th>Model</th>
+                    <th>Dataset 1 - Occupied</th>
+                    <th>Dataset 2 - Occupied</th>
+                    <th>Difference</th>
+                </tr>
+    `;
+    
+    for (const [model, result] of Object.entries(data.dataset1)) {
+        const ds1Count = result.occupied_count;
+        const ds2Count = data.dataset2[model].occupied_count;
+        const diff = ds1Count - ds2Count;
+        
+        html += `<tr>
+            <td><strong>${modelNames[model] || model}</strong></td>
+            <td>${ds1Count} / ${result.total}</td>
+            <td>${ds2Count} / ${data.dataset2[model].total}</td>
+            <td>${diff > 0 ? '+' : ''}${diff}</td>
+        </tr>`;
+    }
+    
+    html += '</table></div>';
+    
+    if (data.plots.comparison) {
+        html += `
+            <div class="card" style="margin-top: 20px;">
+                <h2>Bar Chart Comparison</h2>
+                <img src="data:image/png;base64,${data.plots.comparison}" alt="Comparison Chart">
+            </div>
+        `;
+    }
+    
+    if (data.plots.pie) {
+        html += `
+            <div class="card" style="margin-top: 20px;">
+                <h2>Dataset Occupancy Distribution</h2>
+                <img src="data:image/png;base64,${data.plots.pie}" alt="Pie Chart">
+            </div>
+        `;
+    }
+    
+    resultsDiv.innerHTML = html;
+}
+
+function clearResults() {
+    document.getElementById('results').style.display = 'none';
+    document.getElementById('file1').value = '';
+    document.getElementById('file2').value = '';
+    document.getElementById('fileName1').textContent = '';
+    document.getElementById('fileName2').textContent = '';
+}
+</script>
+{% endblock %}

@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+
+{% block title %}Predicción - XGBoost{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h1>Predicción de Ocupación de la Habitación (XGBoost)</h1>
+    <p style="color: var(--muted); margin-bottom: 20px;">
+        Introduzca las características ambientales para predecir si la habitación está ocupada.
+    </p>
+    
+    <form id="predictionForm">
+        <div class="grid">
+            <div class="form-group">
+                <label for="temperature">Temperatura (°C)</label>
+                <input type="number" step="0.01" id="temperature" name="temperature" required placeholder="e.j., 23.5">
+            </div>
+            <div class="form-group">
+                <label for="humidity">Humedad (%)</label>
+                <input type="number" step="0.01" id="humidity" name="humidity" required placeholder="e.j., 45.0">
+            </div>
+            <div class="form-group">
+                <label for="light">Luz (lux)</label>
+                <input type="number" step="0.01" id="light" name="light" required placeholder="e.j., 450.0">
+            </div>
+            <div class="form-group">
+                <label for="co2">CO2 (ppm)</label>
+                <input type="number" step="0.01" id="co2" name="co2" required placeholder="e.j., 600.0">
+            </div>
+            <div class="form-group">
+                <label for="humidity_ratio">Ratio de Humedad</label>
+                <input type="number" step="0.0001" id="humidity_ratio" name="humidity_ratio" required placeholder="e.j., 0.0092">
+            </div>
+        </div>
+        <button type="submit">Predecir</button>
+    </form>
+    
+    <div id="result" style="display: none;"></div>
+</div>
+
+<script>
+document.getElementById('predictionForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const formData = {
+        temperature: parseFloat(document.getElementById('temperature').value),
+        humidity: parseFloat(document.getElementById('humidity').value),
+        light: parseFloat(document.getElementById('light').value),
+        co2: parseFloat(document.getElementById('co2').value),
+        humidity_ratio: parseFloat(document.getElementById('humidity_ratio').value)
+    };
+    
+    try {
+        const response = await fetch('/prediction/predict', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(formData)
+        });
+        const data = await response.json().catch(() => null);
+        if (!response.ok || data?.error || data?.detail) {
+            alert('Error al realizar la predicción: ' + ((data && (data.error || data.detail)) || response.statusText));
+            return;
+        }
+        
+        const resultDiv = document.getElementById('result');
+        resultDiv.style.display = 'block';
+        
+        const status = data.occupied ? 'Ocupado' : 'No ocupado';
+        const cssClass = data.occupied ? 'occupied' : 'not-occupied';
+        const prob = data.probability ? (data.probability * 100).toFixed(2) : 'N/A';
+        
+        resultDiv.className = `result ${cssClass}`;
+        resultDiv.innerHTML = `
+            <h3>Resultado de la Predicción</h3>
+            <p style="font-size: 24px; font-weight: bold;">Estado de la Habitación: ${status}</p>
+            <p>Confianza: ${prob}%</p>
+        `;
+    } catch (error) {
+        alert('Error al realizar la predicción: ' + error.message);
+    }
+});
+</script>
+{% endblock %}

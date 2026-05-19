@@ -1,0 +1,316 @@
+{% extends "base.html" %}
+
+{% block title %}Comparación de Modelos{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h1>Comparación de Modelos</h1>
+    <p style="color: var(--muted); margin-bottom: 20px;">
+        Compara las predicciones de los 5 modelos. Selecciona un modelo específico o ejecuta todos a la vez.
+    </p>
+    
+    <div class="model-buttons">
+        <button type="button" class="model-btn" onclick="predictModel('xgboost')">XGBoost</button>
+        <button type="button" class="model-btn" onclick="predictModel('decision_tree')">Árbol de Decisión</button>
+        <button type="button" class="model-btn" onclick="predictModel('neural_network')">Red Neuronal</button>
+        <button type="button" class="model-btn" onclick="predictModel('naive_bayes')">Naive Bayes</button>
+        <button type="button" class="model-btn" onclick="predictModel('logistic_regression')">Regresión Logística</button>
+        <button type="button" class="model-btn secondary" onclick="predictAll()">Comparar Todos</button>
+    </div>
+    <div style="margin: 20px 0; display: flex; flex-wrap: wrap; gap: 10px; align-items: center;">
+        <label for="modelSelect" style="font-weight: 600; color: #555;">Seleccionar modelo:</label>
+        <select id="modelSelect" style="min-width: 220px; padding: 10px; border: 2px solid #ddd; border-radius: 5px;">
+            <option value="">-- Elige un modelo --</option>
+            <option value="xgboost">XGBoost</option>
+            <option value="decision_tree">Árbol de Decisión</option>
+            <option value="neural_network">Red Neuronal</option>
+            <option value="naive_bayes">Naive Bayes</option>
+            <option value="logistic_regression">Regresión Logística</option>
+        </select>
+        <button type="button" class="model-btn secondary" onclick="predictSelected()">Comparar Modelo Seleccionado</button>
+    </div>
+    
+    <form id="comparisonForm">
+        <div class="grid">
+            <div class="form-group">
+                <label for="temperature">Temperatura (°C)</label>
+                <input type="number" step="0.01" id="temperature" name="temperature" required>
+            </div>
+            <div class="form-group">
+                <label for="humidity">Humedad (%)</label>
+                <input type="number" step="0.01" id="humidity" name="humidity" required>
+            </div>
+            <div class="form-group">
+                <label for="light">Luz (lux)</label>
+                <input type="number" step="0.01" id="light" name="light" required>
+            </div>
+            <div class="form-group">
+                <label for="co2">CO2 (ppm)</label>
+                <input type="number" step="0.01" id="co2" name="co2" required>
+            </div>
+            <div class="form-group">
+                <label for="humidity_ratio">Ratio de Humedad</label>
+                <input type="number" step="0.0001" id="humidity_ratio" name="humidity_ratio" required>
+            </div>
+        </div>
+    </form>
+    
+    <div id="result" style="display: none;">
+        <div id="comparisonSummary" class="result"></div>
+        <div class="chart-grid" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; margin-top: 20px;">
+            <div class="result" style="padding: 20px; border-radius: 10px;">
+                <h4>Confianza del Modelo</h4>
+                <canvas id="confidenceChart" height="220"></canvas>
+            </div>
+            <div class="result" style="padding: 20px; border-radius: 10px;">
+                <h4>Ocupado vs No Ocupado</h4>
+                <canvas id="statusChart" height="220"></canvas>
+            </div>
+            <div class="result" style="padding: 20px; border-radius: 10px;">
+                <h4>Matriz de Estado</h4>
+                <canvas id="matrixChart" height="220"></canvas>
+            </div>
+        </div>
+        <div id="comparisonTable" style="margin-top: 20px;"></div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+const modelNames = {
+    'xgboost': 'XGBoost',
+    'decision_tree': 'Árbol de Decisión',
+    'neural_network': 'Red Neuronal',
+    'naive_bayes': 'Naive Bayes',
+    'logistic_regression': 'Regresión Logística'
+};
+
+function getFormData() {
+    return {
+        temperature: parseFloat(document.getElementById('temperature').value),
+        humidity: parseFloat(document.getElementById('humidity').value),
+        light: parseFloat(document.getElementById('light').value),
+        co2: parseFloat(document.getElementById('co2').value),
+        humidity_ratio: parseFloat(document.getElementById('humidity_ratio').value)
+    };
+}
+
+function validateFormData(data) {
+    return Object.entries(data)
+        .filter(([key]) => key !== 'model')
+        .every(([, value]) => Number.isFinite(value));
+}
+
+async function predictModel(model) {
+    const data = getFormData();
+    if (!validateFormData(data)) {
+        alert('Por favor completa todos los campos numéricos antes de comparar.');
+        return;
+    }
+    data.model = model;
+
+    await sendComparisonRequest(data);
+}
+
+async function predictSelected() {
+    const selected = document.getElementById('modelSelect').value;
+    if (!selected) {
+        alert('Por favor selecciona un modelo antes de comparar.');
+        return;
+    }
+
+    const data = getFormData();
+    if (!validateFormData(data)) {
+        alert('Por favor completa todos los campos numéricos antes de comparar.');
+        return;
+    }
+    data.model = selected;
+
+    await sendComparisonRequest(data);
+}
+
+async function predictAll() {
+    const data = getFormData();
+
+    if (!validateFormData(data)) {
+        alert('Por favor completa todos los campos numéricos antes de comparar.');
+        return;
+    }
+
+    await sendComparisonRequest(data);
+}
+
+async function sendComparisonRequest(data) {
+    try {
+        const response = await fetch('/comparison/predict', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(data)
+        });
+        const result = await response.json().catch(() => null);
+
+        if (!response.ok) {
+            let message = response.statusText;
+            if (result?.detail) {
+                if (Array.isArray(result.detail)) {
+                    message = result.detail.map(item => item.msg || JSON.stringify(item)).join(' | ');
+                } else {
+                    message = result.detail;
+                }
+            } else if (result?.error) {
+                message = result.error;
+            }
+            alert('Error: ' + message);
+            return;
+        }
+
+        if (result?.error) {
+            alert('Error: ' + result.error);
+            return;
+        }
+
+        displayResult(result);
+    } catch (error) {
+        alert('Error: ' + error.message);
+    }
+}
+
+let confidenceChart = null;
+let statusChart = null;
+let matrixChart = null;
+
+function destroyCharts() {
+    if (confidenceChart) {
+        confidenceChart.destroy();
+        confidenceChart = null;
+    }
+    if (statusChart) {
+        statusChart.destroy();
+        statusChart = null;
+    }
+    if (matrixChart) {
+        matrixChart.destroy();
+        matrixChart = null;
+    }
+}
+
+function displayResult(results) {
+    const resultDiv = document.getElementById('result');
+    const summaryDiv = document.getElementById('comparisonSummary');
+    const tableDiv = document.getElementById('comparisonTable');
+
+    resultDiv.style.display = 'block';
+
+    let html = '<h3>Resultados de Comparación</h3><table><tr><th>Modelo</th><th>Predicción</th><th>Estado</th><th>Confianza</th></tr>';
+    const labels = [];
+    const confidenceValues = [];
+    const statusValues = [];
+    let occupiedCount = 0;
+    let notOccupiedCount = 0;
+
+    for (const [model, data] of Object.entries(results)) {
+        const status = data.occupied ? 'Ocupado' : 'No Ocupado';
+        const probValue = data.probability ? data.probability * 100 : 0;
+        const prob = data.probability ? probValue.toFixed(2) + '%' : 'N/A';
+
+        labels.push(modelNames[model] || model);
+        confidenceValues.push(probValue);
+        statusValues.push(data.occupied ? 1 : 0);
+
+        if (data.occupied) {
+            occupiedCount += 1;
+        } else {
+            notOccupiedCount += 1;
+        }
+
+        html += `<tr>
+            <td><strong>${modelNames[model] || model}</strong></td>
+            <td>${data.prediction}</td>
+            <td>${status}</td>
+            <td>${prob}</td>
+        </tr>`;
+    }
+
+    html += '</table>';
+    tableDiv.innerHTML = html;
+
+    summaryDiv.innerHTML = `
+        <h4>Resumen</h4>
+        <p><strong>Modelos comparados:</strong> ${labels.length}</p>
+        <p><strong>Ocupado:</strong> ${occupiedCount}</p>
+        <p><strong>No ocupado:</strong> ${notOccupiedCount}</p>
+    `;
+
+    destroyCharts();
+
+    if (window.Chart) {
+        const confidenceCtx = document.getElementById('confidenceChart').getContext('2d');
+        confidenceChart = new Chart(confidenceCtx, {
+            type: 'bar',
+            data: {
+                labels,
+                datasets: [{
+                    label: 'Confianza (%)',
+                    data: confidenceValues,
+                    backgroundColor: 'rgba(102, 126, 234, 0.7)',
+                    borderColor: 'rgba(102, 126, 234, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    y: { beginAtZero: true, max: 100 }
+                }
+            }
+        });
+
+        const statusCtx = document.getElementById('statusChart').getContext('2d');
+        statusChart = new Chart(statusCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Ocupado', 'No Ocupado'],
+                datasets: [{
+                    data: [occupiedCount, notOccupiedCount],
+                    backgroundColor: ['#667eea', '#d9d9d9']
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: { legend: { position: 'bottom' } }
+            }
+        });
+
+        const matrixCtx = document.getElementById('matrixChart').getContext('2d');
+        matrixChart = new Chart(matrixCtx, {
+            type: 'bar',
+            data: {
+                labels,
+                datasets: [{
+                    label: 'Ocupado (1 = Sí, 0 = No)',
+                    data: statusValues,
+                    backgroundColor: statusValues.map(value => value ? '#667eea' : '#d9d9d9'),
+                    borderColor: statusValues.map(value => value ? '#4056b0' : '#999'),
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                indexAxis: 'y',
+                scales: {
+                    x: {
+                        min: 0,
+                        max: 1,
+                        ticks: { stepSize: 1 }
+                    }
+                }
+            }
+        });
+    } else {
+        document.getElementById('confidenceChart').parentElement.innerHTML = '<p>Chart.js no está cargado.</p>';
+        document.getElementById('statusChart').parentElement.innerHTML = '<p>Chart.js no está cargado.</p>';
+        document.getElementById('matrixChart').parentElement.innerHTML = '<p>Chart.js no está cargado.</p>';
+    }
+}
+</script>
+{% endblock %}

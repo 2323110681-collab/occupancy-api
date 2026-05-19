@@ -1,0 +1,152 @@
+{% extends "base.html" %}
+
+{% block title %}Análisis de Conjunto de Datos{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h1>Análisis de Conjunto de Datos</h1>
+    <p style="color: var(--muted); margin-bottom: 20px;">
+        Sube tu conjunto de datos (CSV) para analizar las distribuciones de características, correlaciones y estadísticas de ocupación.
+    </p>
+    <p style="color: var(--muted); font-size: 14px; margin-bottom: 20px;">
+        Columnas esperadas: Temperatura, Humedad, Luz, CO2, Índice de Humedad, Ocupación (opcional)
+    </p>
+    
+    <div class="file-upload">
+        <input type="file" id="csvFile" accept=".csv">
+        <label for="csvFile">Haz clic aquí para seleccionar un archivo CSV</label>
+        <p id="fileName" style="margin-top: 10px; color: var(--muted);"></p>
+    </div>
+    
+    <button onclick="analyzeDataset()">Analizar Conjunto de Datos</button>
+    <button onclick="clearResults()" class="secondary">Limpiar</button>
+    
+    <div id="results" style="display: none;"></div>
+</div>
+
+<script>
+document.getElementById('csvFile').addEventListener('change', function(e) {
+    document.getElementById('fileName').textContent = e.target.files[0]?.name || '';
+});
+
+async function analyzeDataset() {
+    const fileInput = document.getElementById('csvFile');
+    const file = fileInput.files[0];
+    
+    if (!file) {
+        alert('Por favor selecciona un archivo CSV primero');
+        return;
+    }
+    
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    try {
+        const response = await fetch('/analysis/analyze', {
+            method: 'POST',
+            body: formData
+        });
+        const data = await response.json().catch(() => null);
+        if (!response.ok || data?.error || data?.detail) {
+            alert('Error al analizar el conjunto de datos: ' + ((data && (data.error || data.detail)) || response.statusText));
+            return;
+        }
+        displayResults(data);
+    } catch (error) {
+        alert('Error al analizar el conjunto de datos: ' + error.message);
+    }
+}
+
+function displayResults(data) {
+    const resultsDiv = document.getElementById('results');
+    resultsDiv.style.display = 'block';
+    
+    let html = `
+        <div class="card" style="margin-top: 20px;">
+            <h2>Resumen del Conjunto de Datos</h2>
+            <p><strong>Filas:</strong> ${data.rows}</p>
+            <p><strong>Columnas:</strong> ${data.columns.join(', ')}</p>
+        </div>
+    `;
+    
+    html += `
+        <div class="card" style="margin-top: 20px;">
+            <h2>Estadísticas de Características</h2>
+            <table>
+                <tr>
+                    <th>Característica</th>
+                    <th>Media</th>
+                    <th>Desv. Est.</th>
+                    <th>Mín</th>
+                    <th>Máx</th>
+                    <th>Mediana</th>
+                </tr>
+    `;
+    
+    for (const [feature, stats] of Object.entries(data.features)) {
+        html += `<tr>
+            <td><strong>${feature}</strong></td>
+            <td>${stats.mean.toFixed(4)}</td>
+            <td>${stats.std.toFixed(4)}</td>
+            <td>${stats.min.toFixed(4)}</td>
+            <td>${stats.max.toFixed(4)}</td>
+            <td>${stats.median.toFixed(4)}</td>
+        </tr>`;
+    }
+    html += '</table></div>';
+    
+    if (data.plots.distributions) {
+        html += `
+            <div class="card" style="margin-top: 20px;">
+                <h2>Distribuciones de Características</h2>
+                <img src="data:image/png;base64,${data.plots.distributions}" alt="Distribuciones de Características">
+            </div>
+        `;
+    }
+    
+    if (data.occupancy_count) {
+        html += `
+            <div class="card" style="margin-top: 20px;">
+                <h2>Distribución de Ocupación</h2>
+                <p>No Ocupada: ${data.occupancy_count['0'] || data.occupancy_count[0]}</p>
+                <p>Ocupada: ${data.occupancy_count['1'] || data.occupancy_count[1]}</p>
+            </div>
+        `;
+        
+        if (data.plots.occupancy_pie) {
+            html += `
+                <div class="card" style="margin-top: 20px;">
+                    <img src="data:image/png;base64,${data.plots.occupancy_pie}" alt="Distribución de Ocupación">
+                </div>
+            `;
+        }
+    }
+    
+    if (data.plots.correlation) {
+        html += `
+            <div class="card" style="margin-top: 20px;">
+                <h2>Matriz de Correlación</h2>
+                <img src="data:image/png;base64,${data.plots.correlation}" alt="Matriz de Correlación">
+            </div>
+        `;
+    }
+    
+    if (data.plots.feature_means) {
+        html += `
+            <div class="card" style="margin-top: 20px;">
+                <h2>Medias de Características</h2>
+                <img src="data:image/png;base64,${data.plots.feature_means}" alt="Medias de Características">
+            </div>
+        `;
+    }
+    
+    resultsDiv.innerHTML = html;
+}
+
+function clearResults() {
+    document.getElementById('results').style.display = 'none';
+    document.getElementById('csvFile').value = '';
+    document.getElementById('fileName').textContent = '';
+}
+</script>
+{% endblock %}
