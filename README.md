@@ -38,15 +38,3 @@ Luego abre en el navegador:
 ```text
 http://localhost:8000/
 ```
-
-## Notas importantes
-
-- La carpeta `models/` debe contener los archivos `.joblib` usados por los modelos.
-- `config.py` carga los modelos desde `models/` usando una ruta relativa al proyecto.
-
-## Despliegue en Render
-
-1. Crea un repositorio en GitHub con este proyecto.
-2. Conecta el repositorio a Render.
-3. Usa `uvicorn main:app --host 0.0.0.0 --port 10000` como comando de inicio si Render requiere puerto dinámico.
-4. Asegúrate de incluir la carpeta `models/` en el repositorio o usar almacenamiento externo si los modelos son grandes.
