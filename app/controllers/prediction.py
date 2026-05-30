@@ -46,12 +46,35 @@ async def predict(request: PredictionRequest):
         })
         return result
     except ValueError as e:
-        # If model not found, return available models and fail clearly
+        # If xgboost is not available in production, fallback to another loaded model
         msg = str(e)
         try:
             available = list(registry.list_models())
         except Exception:
             available = []
+
+        fallback = None
+        for name in available:
+            if name != "xgboost":
+                fallback = name
+                break
+
+        if fallback:
+            try:
+                fallback_model = registry.get(fallback)
+                result = fallback_model.predict({
+                    "temperature": request.temperature,
+                    "humidity": request.humidity,
+                    "light": request.light,
+                    "co2": request.co2,
+                    "humidity_ratio": request.humidity_ratio
+                })
+                result["model_name"] = fallback
+                result["note"] = f"Modelo 'xgboost' no disponible en producción; usando '{fallback}'."
+                return result
+            except Exception:
+                pass
+
         return JSONResponse({"error": msg, "available_models": available}, status_code=400)
     except Exception as e:
         msg = str(e)
