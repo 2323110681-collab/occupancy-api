@@ -4,7 +4,7 @@ import pandas as pd
 from pathlib import Path
 from typing import Any, Dict, List
 
-FEATURE_ORDER = ["Temperature", "Humidity", "Light", "CO2", "HumidityRatio"]
+FEATURE_ORDER = ["Temperature", "Light", "HumidityRatio", "Humidity", "CO2"]
 
 
 class Predictor:
