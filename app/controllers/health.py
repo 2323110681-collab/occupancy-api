@@ -9,7 +9,7 @@ templates = Jinja2Templates(directory=str(config.TEMPLATES_DIR))
 
 @router.get("/")
 async def root(request: Request):
-    return templates.TemplateResponse(request, "home.html")
+    return templates.TemplateResponse("home.html", {"request": request})
 
 
 @router.get("/health")
