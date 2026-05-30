@@ -19,7 +19,8 @@ class PredictionRequest(BaseModel):
 
 @router.get("/", response_class=HTMLResponse)
 async def prediction_page(request: Request):
-    return templates.TemplateResponse("prediction.html", {"request": request})  
+    return templates.TemplateResponse(request, "prediction.html")
+
 
 @router.post("/predict")
 async def predict(request: PredictionRequest):
@@ -37,4 +38,14 @@ async def predict(request: PredictionRequest):
     except ValueError as e:
         return JSONResponse({"error": str(e)}, status_code=400)
     except Exception as e:
-        return JSONResponse({"error": str(e)}, status_code=500)
+        msg = str(e)
+        # Detect common sklearn deserialization/version mismatch error
+        if isinstance(e, AttributeError) and "_sklearn_tags_" in msg:
+            hint = (
+                "Incompatibilidad detectada entre el modelo serializado y la versión de scikit-learn en tiempo de ejecución. "
+                "Solución: fije la versión de scikit-learn usada para desplegar a la misma que la usada al entrenar/serializar los modelos (por ejemplo, add 'scikit-learn==1.4.2' en requirements.txt) "
+                "y vuelva a desplegar. También puede reentrenar y serializar los modelos con la versión actual de scikit-learn."
+            )
+            return JSONResponse({"error": msg, "hint": hint}, status_code=500)
+
+        return JSONResponse({"error": msg}, status_code=500)
