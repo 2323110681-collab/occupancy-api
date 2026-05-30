@@ -13,62 +13,54 @@ class Predictor:
         self.model = joblib.load(path)
         self.supports_proba = hasattr(self.model, "predict_proba")
         
-        # Detectar automáticamente el orden de características que espera el modelo
+        # Detectar el orden de características que espera el modelo
         if hasattr(self.model, "feature_names_in_"):
             self.feature_order = list(self.model.feature_names_in_)
             print(f"✅ Modelo {path.name} espera: {self.feature_order}")
         else:
-            # Fallback para modelos antiguos
+            # Si el modelo no tiene la información, usar orden por defecto
             self.feature_order = ["Temperature", "Humidity", "Light", "CO2", "HumidityRatio"]
-            print(f"⚠️ Modelo {path.name} no tiene feature_names_in_, usando orden por defecto")
+            print(f"⚠️ Modelo {path.name} no tiene feature_names_in_")
 
     def predict(self, features: Dict[str, Any]) -> Dict[str, Any]:
-        # Construir diccionario con nombres correctos (mapeo de nombres)
-        normalized_features = {}
+        # Construir el array en el orden exacto que espera el modelo
+        feature_values = []
         
-        # Mapear los nombres que vienen del request a los nombres que espera el modelo
-        for key, value in features.items():
-            # Buscar coincidencia sin importar mayúsculas/minúsculas
-            lower_key = key.lower()
-            if lower_key == "temperature":
-                normalized_features["Temperature"] = float(value)
-            elif lower_key == "humidity":
-                normalized_features["Humidity"] = float(value)
-            elif lower_key == "light":
-                normalized_features["Light"] = float(value)
-            elif lower_key == "co2":
-                normalized_features["CO2"] = float(value)
-            elif lower_key == "humidity_ratio":
-                normalized_features["HumidityRatio"] = float(value)
-            else:
-                normalized_features[key] = float(value)
-        
-        # Construir el array en el orden que espera el modelo
-        try:
-            # Intentar con DataFrame (más robusto)
-            df_data = []
-            for col in self.feature_order:
-                if col in normalized_features:
-                    df_data.append(normalized_features[col])
+        for expected_feature in self.feature_order:
+            # Buscar el valor en el diccionario de features
+            found = False
+            for key, value in features.items():
+                # Comparar sin importar mayúsculas/minúsculas
+                if key.lower() == expected_feature.lower():
+                    feature_values.append(float(value))
+                    found = True
+                    break
+            
+            if not found:
+                # Si no encuentra, intentar con nombres alternativos
+                if expected_feature.lower() == "temperature":
+                    feature_values.append(float(features.get("temperature", 0)))
+                elif expected_feature.lower() == "humidity":
+                    feature_values.append(float(features.get("humidity", 0)))
+                elif expected_feature.lower() == "light":
+                    feature_values.append(float(features.get("light", 0)))
+                elif expected_feature.lower() == "co2":
+                    feature_values.append(float(features.get("co2", 0)))
+                elif expected_feature.lower() == "humidityratio":
+                    feature_values.append(float(features.get("humidity_ratio", 0)))
                 else:
-                    # Buscar por nombre sin importar mayúsculas
-                    found = False
-                    for k, v in normalized_features.items():
-                        if k.lower() == col.lower():
-                            df_data.append(v)
-                            found = True
-                            break
-                    if not found:
-                        raise ValueError(f"Característica '{col}' no encontrada en los datos")
-            
-            df = pd.DataFrame([df_data], columns=self.feature_order)
-            prediction = self.model.predict(df)
-            
+                    raise ValueError(f"No se encontró valor para la característica: {expected_feature}")
+        
+        # Crear array 2D para la predicción
+        X = np.array([feature_values])
+        
+        # Hacer predicción
+        try:
+            prediction = self.model.predict(X)
         except Exception as e:
-            # Fallback: usar el método antiguo
-            print(f"Error con DataFrame, usando método alternativo: {e}")
-            features_vector = [normalized_features.get(col, 0) for col in self.feature_order]
-            prediction = self.model.predict([features_vector])
+            # Intentar con DataFrame como fallback
+            df = pd.DataFrame([feature_values], columns=self.feature_order)
+            prediction = self.model.predict(df)
         
         if isinstance(prediction, np.ndarray):
             predicted_value = int(prediction[0])
@@ -83,9 +75,7 @@ class Predictor:
 
         if self.supports_proba:
             try:
-                # Reconstruir datos para probabilidad
-                df_proba = pd.DataFrame([df_data], columns=self.feature_order)
-                proba = self.model.predict_proba(df_proba)
+                proba = self.model.predict_proba(X)
                 if hasattr(proba, "shape") and proba.shape[1] > 1:
                     result["probability"] = float(proba[0][1])
                 else:
