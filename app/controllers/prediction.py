@@ -19,7 +19,7 @@ class PredictionRequest(BaseModel):
 
 @router.get("/", response_class=HTMLResponse)
 async def prediction_page(request: Request):
-    return templates.TemplateResponse(request, "prediction.html")
+    return templates.TemplateResponse("prediction.html", {"request": request})
 
 
 @router.post("/predict")
