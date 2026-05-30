@@ -279,6 +279,140 @@
             color: var(--accent);
             font-weight: 700;
         }
+        .card {
+            transition: transform 0.25s ease, box-shadow 0.25s ease, background 0.25s ease;
+        }
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 26px 40px rgba(15, 23, 42, 0.16);
+        }
+        .fade-in {
+            animation: fadeIn 0.45s ease forwards;
+            opacity: 0;
+        }
+        .button-animated {
+            animation: pulse 3s ease-in-out infinite;
+        }
+        .status-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 16px;
+            border-radius: 999px;
+            background: rgba(102, 126, 234, 0.12);
+            color: var(--accent);
+            font-weight: 700;
+            margin-bottom: 18px;
+            transition: background 0.25s ease, color 0.25s ease;
+        }
+        .status-chip.info {
+            background: rgba(102, 126, 234, 0.14);
+            color: var(--accent);
+        }
+        .status-chip.success {
+            background: rgba(72, 187, 120, 0.16);
+            color: #047857;
+        }
+        .status-chip.error {
+            background: rgba(239, 68, 68, 0.16);
+            color: #b91c1c;
+        }
+        .table-striped tbody tr:nth-child(even) {
+            background: rgba(102, 126, 234, 0.08);
+        }
+        .table-striped tbody tr:hover {
+            background: rgba(102, 126, 234, 0.16);
+        }
+        .progress-label {
+            margin-top: 10px;
+            color: var(--muted);
+            font-size: 0.95rem;
+        }
+        .result-warning {
+            background: rgba(254, 226, 226, 0.8);
+            border-left: 5px solid #dc2626;
+            color: #991b1b;
+            padding: 18px;
+            border-radius: 14px;
+            margin-top: 20px;
+        }
+        @keyframes pulse {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-2px); }
+        }
+        .progress-container {
+            background: rgba(102, 126, 234, 0.14);
+            border-radius: 999px;
+            overflow: hidden;
+            height: 14px;
+            margin-top: 12px;
+        }
+        .progress-bar {
+            width: 0%;
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            transition: width 0.35s ease;
+        }
+        .spinner {
+            border: 4px solid rgba(255,255,255,0.25);
+            border-top: 4px solid var(--accent);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+        .loading-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.45);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            z-index: 9999;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.25s ease;
+        }
+        .loading-overlay.active {
+            opacity: 1;
+            pointer-events: all;
+        }
+        .loading-card {
+            background: var(--card-bg);
+            border-radius: 24px;
+            padding: 28px;
+            width: min(420px, 100%);
+            box-shadow: 0 24px 48px rgba(15, 23, 42, 0.22);
+            text-align: center;
+            border: 1px solid rgba(255,255,255,0.35);
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .footer {
+            margin-top: 40px;
+            padding: 20px 0 10px;
+            text-align: center;
+            color: var(--muted);
+            font-size: 14px;
+        }
+        .footer span {
+            display: block;
+            margin-top: 6px;
+        }
+        .footer a {
+            color: var(--accent);
+            text-decoration: none;
+        }
+        .footer a:hover {
+            text-decoration: underline;
+        }
         .tabs {
             display: flex;
             border-bottom: 2px solid var(--border);
@@ -444,5 +578,9 @@
         });
         {% block scripts %}{% endblock %}
     </script>
+    <footer class="footer">
+        <div>Occupancy Detection System © 2026</div>
+        <span>Trabajo realizado por Luis Monge, Jeremy Huacho, Alondra Custodio</span>
+    </footer>
 </body>
 </html>

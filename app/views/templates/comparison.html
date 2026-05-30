@@ -6,28 +6,19 @@
 <div class="card">
     <h1>Comparación de Modelos</h1>
     <p style="color: var(--muted); margin-bottom: 20px;">
-        Compara las predicciones de los 5 modelos. Selecciona un modelo específico o ejecuta todos a la vez.
+        Selecciona uno o dos modelos y compara sus predicciones con los datos ingresados.
     </p>
     
     <div class="model-buttons">
-        <button type="button" class="model-btn" onclick="predictModel('xgboost')">XGBoost</button>
-        <button type="button" class="model-btn" onclick="predictModel('decision_tree')">Árbol de Decisión</button>
-        <button type="button" class="model-btn" onclick="predictModel('neural_network')">Red Neuronal</button>
-        <button type="button" class="model-btn" onclick="predictModel('naive_bayes')">Naive Bayes</button>
-        <button type="button" class="model-btn" onclick="predictModel('logistic_regression')">Regresión Logística</button>
-        <button type="button" class="model-btn secondary" onclick="predictAll()">Comparar Todos</button>
+        <button type="button" class="model-btn" onclick="toggleModel('xgboost')">XGBoost</button>
+        <button type="button" class="model-btn" onclick="toggleModel('decision_tree')">Árbol de Decisión</button>
+        <button type="button" class="model-btn" onclick="toggleModel('neural_network')">Red Neuronal</button>
+        <button type="button" class="model-btn" onclick="toggleModel('naive_bayes')">Naive Bayes</button>
+        <button type="button" class="model-btn" onclick="toggleModel('logistic_regression')">Regresión Logística</button>
     </div>
-    <div style="margin: 20px 0; display: flex; flex-wrap: wrap; gap: 10px; align-items: center;">
-        <label for="modelSelect" style="font-weight: 600; color: #555;">Seleccionar modelo:</label>
-        <select id="modelSelect" style="min-width: 220px; padding: 10px; border: 2px solid #ddd; border-radius: 5px;">
-            <option value="">-- Elige un modelo --</option>
-            <option value="xgboost">XGBoost</option>
-            <option value="decision_tree">Árbol de Decisión</option>
-            <option value="neural_network">Red Neuronal</option>
-            <option value="naive_bayes">Naive Bayes</option>
-            <option value="logistic_regression">Regresión Logística</option>
-        </select>
-        <button type="button" class="model-btn secondary" onclick="predictSelected()">Comparar Modelo Seleccionado</button>
+    <div style="margin: 18px 0; display: flex; flex-wrap: wrap; gap: 12px; align-items: center;">
+        <button type="button" class="model-btn secondary" onclick="compareSelectedModels()">Comparar 1 o 2 Modelos</button>
+        <div id="selectedModelsInfo" style="font-weight: 600; color: var(--muted);">Selecciona uno o más modelos</div>
     </div>
     
     <form id="comparisonForm">
@@ -101,42 +92,43 @@ function validateFormData(data) {
         .every(([, value]) => Number.isFinite(value));
 }
 
-async function predictModel(model) {
-    const data = getFormData();
-    if (!validateFormData(data)) {
-        alert('Por favor completa todos los campos numéricos antes de comparar.');
-        return;
-    }
-    data.model = model;
+let selectedModels = new Set();
 
-    await sendComparisonRequest(data);
+function toggleModel(model) {
+    const button = document.querySelector(`button[onclick="toggleModel('${model}')"]`);
+    if (selectedModels.has(model)) {
+        selectedModels.delete(model);
+        button.classList.remove('active');
+    } else {
+        selectedModels.add(model);
+        button.classList.add('active');
+    }
+    updateSelectedModelsInfo();
 }
 
-async function predictSelected() {
-    const selected = document.getElementById('modelSelect').value;
-    if (!selected) {
-        alert('Por favor selecciona un modelo antes de comparar.');
-        return;
+function updateSelectedModelsInfo() {
+    const info = document.getElementById('selectedModelsInfo');
+    if (selectedModels.size === 0) {
+        info.textContent = 'Selecciona uno o más modelos para comparar';
+    } else {
+        const names = [...selectedModels].map(m => modelNames[m] || m).join(', ');
+        info.textContent = `Modelos: ${names}`;
     }
-
-    const data = getFormData();
-    if (!validateFormData(data)) {
-        alert('Por favor completa todos los campos numéricos antes de comparar.');
-        return;
-    }
-    data.model = selected;
-
-    await sendComparisonRequest(data);
 }
 
-async function predictAll() {
-    const data = getFormData();
+async function compareSelectedModels() {
+    if (selectedModels.size === 0) {
+        alert('Selecciona al menos 1 modelo para comparar.');
+        return;
+    }
 
+    const data = getFormData();
     if (!validateFormData(data)) {
         alert('Por favor completa todos los campos numéricos antes de comparar.');
         return;
     }
 
+    data.models = [...selectedModels];
     await sendComparisonRequest(data);
 }
 
