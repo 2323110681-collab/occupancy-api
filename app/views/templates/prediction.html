@@ -119,6 +119,7 @@ predictionForm.addEventListener('submit', async (e) => {
 
         const status = data.occupied ? 'Ocupado' : 'No ocupado';
         const cssClass = data.occupied ? 'occupied' : 'not-occupied';
+        const modelName = data.model_name || data.fallback_model || 'XGBoost';
         const prob = data.probability ? (data.probability * 100).toFixed(2) : 'N/A';
         const warnings = renderWarnings(formData);
 
@@ -127,8 +128,9 @@ predictionForm.addEventListener('submit', async (e) => {
         resultDiv.innerHTML = `
             <h3>Resultado de la Predicción</h3>
             <p style="font-size: 24px; font-weight: bold;">Estado de la Habitación: ${status}</p>
-            <p>Modelo usado: <strong>XGBoost</strong></p>
+            <p>Modelo usado: <strong>${modelName}</strong></p>
             <p>Confianza: <strong>${prob}%</strong></p>
+            ${data.note ? `<p style="font-size: 0.95rem; color: var(--muted); margin-top: 10px;">${data.note}</p>` : ''}
             ${warnings.length ? `<ul class="warning-list">${warnings.map(w => `<li>${w}</li>`).join('')}</ul>` : ''}
         `;
         predictionStatus.textContent = 'Predicción completada.';
