@@ -58,16 +58,6 @@ async def analyze_csv(file: UploadFile = File(...)):
             "features": {}
         }
 
-        # Calcular estadísticas de características
-        for col in feature_cols:
-            analysis["features"][col] = {
-                "mean": float(df[col].mean()),
-                "std": float(df[col].std()),
-                "min": float(df[col].min()),
-                "max": float(df[col].max()),
-                "median": float(df[col].median())
-            }
-
         plots = {}
 
         fig, axes = plt.subplots(2, 3, figsize=(15, 10))
