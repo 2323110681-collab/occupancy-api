@@ -22,6 +22,16 @@ async def prediction_page(request: Request):
     return templates.TemplateResponse(request, "prediction.html")
 
 
+@router.get('/models')
+async def list_models():
+    from app.models.registry import registry
+    try:
+        models = list(registry.list_models())
+        return JSONResponse({"models": models})
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
 @router.post("/predict")
 async def predict(request: PredictionRequest):
     from app.models.registry import registry
@@ -36,7 +46,13 @@ async def predict(request: PredictionRequest):
         })
         return result
     except ValueError as e:
-        return JSONResponse({"error": str(e)}, status_code=400)
+        # If model not found, return available models to help debugging
+        msg = str(e)
+        try:
+            available = list(registry.list_models())
+        except Exception:
+            available = []
+        return JSONResponse({"error": msg, "available_models": available}, status_code=400)
     except Exception as e:
         msg = str(e)
         # Detect common sklearn deserialization/version mismatch error

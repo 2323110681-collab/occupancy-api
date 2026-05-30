@@ -106,8 +106,15 @@ predictionForm.addEventListener('submit', async (e) => {
             body: JSON.stringify(formData)
         });
         const data = await response.json().catch(() => null);
-        if (!response.ok || data?.error || data?.detail) {
-            throw new Error((data && (data.error || data.detail)) || response.statusText);
+        if (!response.ok) {
+            const serverMsg = data?.error || data?.detail || response.statusText;
+            const available = data?.available_models ? `\nModelos cargados: ${data.available_models.join(', ')}` : '';
+            throw new Error((serverMsg || response.statusText) + available);
+        }
+        if (data?.error || data?.detail) {
+            const serverMsg = data?.error || data?.detail;
+            const available = data?.available_models ? `\nModelos cargados: ${data.available_models.join(', ')}` : '';
+            throw new Error(serverMsg + available);
         }
 
         const status = data.occupied ? 'Ocupado' : 'No ocupado';
