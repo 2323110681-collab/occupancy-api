@@ -18,15 +18,32 @@
         <p id="fileName" style="margin-top: 10px; color: var(--muted);"></p>
     </div>
     
-    <button onclick="analyzeDataset()">Analizar Conjunto de Datos</button>
-    <button onclick="clearResults()" class="secondary">Limpiar</button>
+    <button id="analyzeButton" onclick="analyzeDataset()">Analizar Conjunto de Datos</button>
+    <button id="clearButton" onclick="clearResults()" class="secondary">Limpiar</button>
+    <div id="analysisStatus" class="status-chip info" style="display: none;" role="status" aria-live="polite"></div>
     
+    <div id="loadingOverlay" class="loading-overlay" aria-hidden="true">
+        <div class="loading-card">
+            <div class="spinner"></div>
+            <h3 id="loadingStage" style="margin-top: 18px;">Analizando archivo CSV...</h3>
+            <p id="loadingMessage" style="color: var(--muted); margin: 12px 0 0;">Por favor espera mientras procesamos las características.</p>
+            <div class="progress-container">
+                <div id="progressBar" class="progress-bar"></div>
+            </div>
+            <div class="progress-label" id="progressLabel">Cargando datos...</div>
+        </div>
+    </div>
+
     <div id="results" style="display: none;"></div>
 </div>
 
 <script>
 document.getElementById('csvFile').addEventListener('change', function(e) {
-    document.getElementById('fileName').textContent = e.target.files[0]?.name || '';
+    const fileName = e.target.files[0]?.name || '';
+    document.getElementById('fileName').textContent = fileName;
+    if (fileName) {
+        setStatus('Archivo listo para analizar: ' + fileName, 'success');
+    }
 });
 
 async function analyzeDataset() {
@@ -34,10 +51,12 @@ async function analyzeDataset() {
     const file = fileInput.files[0];
     
     if (!file) {
-        alert('Por favor selecciona un archivo CSV primero');
+        setStatus('Por favor selecciona un archivo CSV primero.', 'error');
         return;
     }
-    
+
+    setStatus('Validando archivo...', 'info');
+    showLoading();
     const formData = new FormData();
     formData.append('file', file);
     
@@ -48,38 +67,109 @@ async function analyzeDataset() {
         });
         const data = await response.json().catch(() => null);
         if (!response.ok || data?.error || data?.detail) {
-            alert('Error al analizar el conjunto de datos: ' + ((data && (data.error || data.detail)) || response.statusText));
-            return;
+            throw new Error((data && (data.error || data.detail)) || response.statusText);
         }
         displayResults(data);
+        setStatus('Análisis completado con éxito.', 'success');
     } catch (error) {
-        alert('Error al analizar el conjunto de datos: ' + error.message);
+        setStatus('Error al analizar el conjunto de datos: ' + error.message, 'error');
+    } finally {
+        hideLoading();
     }
+}
+
+let progressInterval;
+function setProgress(value) {
+    const progressBar = document.getElementById('progressBar');
+    progressBar.style.width = `${value}%`;
+}
+
+function setLoadingStage(stageText, labelText, value) {
+    document.getElementById('loadingStage').textContent = stageText;
+    document.getElementById('progressLabel').textContent = labelText;
+    setProgress(value);
+}
+
+function setStatus(message, type = 'info') {
+    const statusChip = document.getElementById('analysisStatus');
+    statusChip.textContent = message;
+    statusChip.className = 'status-chip ' + type;
+    statusChip.style.display = 'inline-flex';
+}
+
+function showLoading() {
+    document.getElementById('loadingOverlay').classList.add('active');
+    document.getElementById('analyzeButton').classList.add('button-animated');
+    setLoadingStage('Cargando datos...', 'Iniciando análisis...', 10);
+    let current = 10;
+    progressInterval = setInterval(() => {
+        if (current < 88) {
+            current += 7;
+            setProgress(current);
+        }
+    }, 260);
+    setTimeout(() => setLoadingStage('Generando gráficos...', 'Procesando características...', 45), 900);
+    setTimeout(() => setLoadingStage('Preparando resultados...', 'Casi listo...', 1900), 1800);
+}
+
+function hideLoading() {
+    clearInterval(progressInterval);
+    setProgress(100);
+    setTimeout(() => {
+        document.getElementById('loadingOverlay').classList.remove('active');
+        document.getElementById('analyzeButton').classList.remove('button-animated');
+        setProgress(0);
+    }, 300);
 }
 
 function displayResults(data) {
     const resultsDiv = document.getElementById('results');
     resultsDiv.style.display = 'block';
     
-    let html = `
-        <div class="card" style="margin-top: 20px;">
-            <h2>Resumen del Conjunto de Datos</h2>
-            <p><strong>Filas:</strong> ${data.rows}</p>
-            <p><strong>Columnas:</strong> ${data.columns.join(', ')}</p>
-        </div>
-    `;
-    
+    const warnings = [];
+    if (data.features.CO2?.mean > 1000) {
+        warnings.push('El CO2 medio es alto y puede indicar mala ventilación.');
+    }
+    if (data.features.Humidity?.mean > 60) {
+        warnings.push('La humedad media está alta.');
+    } else if (data.features.Humidity?.mean < 30) {
+        warnings.push('La humedad media está baja.');
+    }
+
+    const occupancyValue = data.occupancy_count ? (data.occupancy_count['1'] || data.occupancy_count[1] || 0) : 0;
+    const occupancyPercent = data.occupancy_count ? Math.round((occupancyValue / (data.rows || 1)) * 100) : null;
+
+    let html = '';
+    if (occupancyPercent !== null) {
+        html += `
+            <div class="card fade-in" style="margin-top: 20px;">
+                <h2>Resumen Rápido</h2>
+                <p><strong>Ocupación estimada:</strong> ${occupancyPercent}%</p>
+                <p><strong>Total de registros:</strong> ${data.rows}</p>
+                <p><strong>Columnas detectadas:</strong> ${data.columns.join(', ')}</p>
+            </div>
+        `;
+    } else {
+        html += `
+            <div class="card fade-in" style="margin-top: 20px;">
+                <h2>Resumen del Conjunto de Datos</h2>
+                <p><strong>Filas:</strong> ${data.rows}</p>
+                <p><strong>Columnas:</strong> ${data.columns.join(', ')}</p>
+            </div>
+        `;
+    }
+
     html += `
-        <div class="card" style="margin-top: 20px;">
+        <div class="card fade-in" style="margin-top: 20px;">
             <h2>Estadísticas de Características</h2>
-            <table>
+            <table class="table-striped">
                 <tr>
-                    <th>Característica</th>
-                    <th>Media</th>
-                    <th>Desv. Est.</th>
-                    <th>Mín</th>
-                    <th>Máx</th>
-                    <th>Mediana</th>
+                    <th title="Promedio de la variable">Característica</th>
+                    <th title="Media aritmética">Media</th>
+                    <th title="Desviación estándar">Desv. Est.</th>
+                    <th title="Valor mínimo">Mín</th>
+                    <th title="Valor máximo">Máx</th>
+                    <th title="Valor medio ordenado">Mediana</th>
                 </tr>
     `;
     
@@ -94,10 +184,17 @@ function displayResults(data) {
         </tr>`;
     }
     html += '</table></div>';
-    
+
+    if (warnings.length) {
+        html += `<div class="result result-warning fade-in">
+            <strong>Atención:</strong>
+            <ul style="margin-top: 10px; padding-left: 18px;">${warnings.map(w => `<li>${w}</li>`).join('')}</ul>
+        </div>`;
+    }
+
     if (data.plots.distributions) {
         html += `
-            <div class="card" style="margin-top: 20px;">
+            <div class="card fade-in" style="margin-top: 20px;">
                 <h2>Distribuciones de Características</h2>
                 <img src="data:image/png;base64,${data.plots.distributions}" alt="Distribuciones de Características">
             </div>
@@ -106,7 +203,7 @@ function displayResults(data) {
     
     if (data.occupancy_count) {
         html += `
-            <div class="card" style="margin-top: 20px;">
+            <div class="card fade-in" style="margin-top: 20px;">
                 <h2>Distribución de Ocupación</h2>
                 <p>No Ocupada: ${data.occupancy_count['0'] || data.occupancy_count[0]}</p>
                 <p>Ocupada: ${data.occupancy_count['1'] || data.occupancy_count[1]}</p>
@@ -115,7 +212,7 @@ function displayResults(data) {
         
         if (data.plots.occupancy_pie) {
             html += `
-                <div class="card" style="margin-top: 20px;">
+                <div class="card fade-in" style="margin-top: 20px;">
                     <img src="data:image/png;base64,${data.plots.occupancy_pie}" alt="Distribución de Ocupación">
                 </div>
             `;
@@ -124,7 +221,7 @@ function displayResults(data) {
     
     if (data.plots.correlation) {
         html += `
-            <div class="card" style="margin-top: 20px;">
+            <div class="card fade-in" style="margin-top: 20px;">
                 <h2>Matriz de Correlación</h2>
                 <img src="data:image/png;base64,${data.plots.correlation}" alt="Matriz de Correlación">
             </div>
@@ -133,7 +230,7 @@ function displayResults(data) {
     
     if (data.plots.feature_means) {
         html += `
-            <div class="card" style="margin-top: 20px;">
+            <div class="card fade-in" style="margin-top: 20px;">
                 <h2>Medias de Características</h2>
                 <img src="data:image/png;base64,${data.plots.feature_means}" alt="Medias de Características">
             </div>
@@ -147,6 +244,8 @@ function clearResults() {
     document.getElementById('results').style.display = 'none';
     document.getElementById('csvFile').value = '';
     document.getElementById('fileName').textContent = '';
+    document.getElementById('analysisStatus').style.display = 'none';
+    hideLoading();
 }
 </script>
 {% endblock %}

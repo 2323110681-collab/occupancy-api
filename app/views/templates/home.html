@@ -3,54 +3,72 @@
 {% block title %}Inicio - Detección de Ocupación{% endblock %}
 
 {% block content %}
-<div class="card">
-    <h1>Sistema de detección de ocupación de habitaciones</h1>
-    <p style="font-size: 18px; color: var(--muted); margin-bottom: 20px;">
-        Bienvenido al sistema de detección de ocupación. Esta aplicación utiliza modelos de aprendizaje automático para predecir si una habitación está ocupada basándose en sensores ambientales.
-    </p>
-
-    <h2>Características</h2>
-    <div class="grid">
-        <div class="card">
-            <h3>Predicción</h3>
-            <p>Predice la ocupación de las habitaciones utilizando el modelo XGBoost con las siguientes características de entrada: temperatura, humedad, luz, CO2 y relación de humedad.</p>
-        </div>
-        <div class="card">
-            <h3>Comparación de Modelos</h3>
-            <p>Compara las predicciones de los diferentes modelos disponibles: XGBoost, Árbol de Decisión, Red Neuronal, Naive Bayes y Regresión Logística.</p>
-        </div>
-        <div class="card">
-            <h3>Análisis de Conjunto de Datos</h3>
-            <p>Sube tu propio conjunto de datos para analizar las distribuciones de características, correlaciones y estadísticas de ocupación.</p>
+<div class="hero-card">
+    <div class="hero-copy">
+        <div class="feature-badge">Análisis inteligente</div>
+        <h1>Detecta la ocupación con modelos de IA y visualiza los resultados de forma clara</h1>
+        <p class="hero-text">Usa datos ambientales para predecir si una habitación está ocupada, comparar varios modelos y analizar lotes con CSV. Ideal para control de salas, ventilación y gestión de edificios.</p>
+        <div class="hero-buttons">
+            <a href="/prediction" class="button">Predicción</a>
+            <a href="/analysis" class="button secondary">Análisis</a>
         </div>
     </div>
-    
-    <h2 style="margin-top: 30px;">Características de Entrada</h2>
-    <table>
-        <tr>
-            <th>Característica</th>
-            <th>Descripción</th>
-        </tr>
-        <tr>
-            <td><strong>Temperatura</strong></td>
-            <td>Temperatura de la habitación en Celsius</td>
-        </tr>
-        <tr>
-            <td><strong>Humedad</strong></td>
-            <td>Porcentaje de humedad relativa (0-100%)</td>
-        </tr>
-        <tr>
-            <td><strong>Luz</strong></td>
-            <td>Intensidad de luz en lux</td>
-        </tr>
-        <tr>
-            <td><strong>CO2</strong></td>
-            <td>Concentración de CO2 en ppm</td>
-        </tr>
-        <tr>
-            <td><strong>Ratio de Humedad</strong></td>
-            <td>Proporción de humedad absoluta (kg agua/kg aire)</td>
-        </tr>
-    </table>
+    <div class="hero-visual">
+        <div class="feature-card">
+            <h3>Modelos disponibles</h3>
+            <p>XGBoost, Árbol de Decisión, Red Neuronal, Naive Bayes y Regresión Logística.</p>
+        </div>
+        <div class="feature-card">
+            <h3>Resultados visuales</h3>
+            <p>Obtén gráficos, estadísticas y comparativas de confianza con una interfaz amigable para el usuario.</p>
+        </div>
+    </div>
+</div>
+
+<div class="stat-grid">
+    <div class="stat-card">
+        <h3>Predicción en vivo</h3>
+        <p>Introduce temperatura, humedad, luz, CO2 y razón de humedad para obtener un resultado inmediato de ocupación.</p>
+    </div>
+    <div class="stat-card">
+        <h3>Comparación diversa</h3>
+        <p>Compara diferentes algoritmos para entender mejor cómo responden tus datos.</p>
+    </div>
+    <div class="stat-card">
+        <h3>Análisis profundo</h3>
+        <p>Sube archivos CSV y descubre distribuciones, correlaciones y advertencias útiles.</p>
+    </div>
+</div>
+
+<div class="card">
+    <h2 class="page-title">Características de Entrada</h2>
+    <div class="table-responsive">
+        <table>
+            <tr>
+                <th>Característica</th>
+                <th>Descripción</th>
+            </tr>
+            <tr>
+                <td><strong>Temperatura</strong></td>
+                <td>Temperatura de la habitación en Celsius</td>
+            </tr>
+            <tr>
+                <td><strong>Humedad</strong></td>
+                <td>Porcentaje de humedad relativa (0-100%)</td>
+            </tr>
+            <tr>
+                <td><strong>Luz</strong></td>
+                <td>Intensidad de luz en lux</td>
+            </tr>
+            <tr>
+                <td><strong>CO2</strong></td>
+                <td>Concentración de CO2 en ppm</td>
+            </tr>
+            <tr>
+                <td><strong>Ratio de Humedad</strong></td>
+                <td>Proporción de humedad absoluta (kg agua/kg aire)</td>
+            </tr>
+        </table>
+    </div>
 </div>
 {% endblock %}

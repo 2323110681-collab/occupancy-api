@@ -1,12 +1,14 @@
 from pathlib import Path
+import os
 
 # Directorio base del proyecto (donde está config.py)
 BASE_DIR = Path(__file__).resolve().parent
 # Directorio donde están los modelos, relativo a este proyecto
 MODELS_DIR = BASE_DIR / "models"
 
+# Render asigna el puerto automáticamente mediante la variable de entorno PORT
 HOST = "0.0.0.0"
-PORT = 8000
+PORT = int(os.getenv("PORT", 8000))  # ← IMPORTANTE: Usar variable de entorno
 
 MODEL_FILES = {
     "xgboost": "modelo_xgboost.joblib",

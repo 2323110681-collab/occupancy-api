@@ -32,24 +32,73 @@
                 <input type="number" step="any" id="humidity_ratio" name="humidity_ratio" required placeholder="e.j., 0.0092">
             </div>
         </div>
-        <button type="submit">Predecir</button>
+        <button type="submit" class="pred-button">Predecir</button>
     </form>
     
+    <div id="predictionStatus" class="status-tag">Completa los campos para habilitar la predicción.</div>
+    <p class="help-text">Rangos recomendados: Temperatura 15–30°C, Humedad 30–60%, CO2 300–1000 ppm, Ratio de Humedad 0.003–0.020.</p>
     <div id="result" style="display: none;"></div>
 </div>
 
 <script>
-document.getElementById('predictionForm').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    
-    const formData = {
+const predictionForm = document.getElementById('predictionForm');
+const predictButton = predictionForm.querySelector('button[type="submit"]');
+const predictionStatus = document.getElementById('predictionStatus');
+const resultDiv = document.getElementById('result');
+const fields = ['temperature', 'humidity', 'light', 'co2', 'humidity_ratio'];
+
+function getFormData() {
+    return {
         temperature: parseFloat(document.getElementById('temperature').value),
         humidity: parseFloat(document.getElementById('humidity').value),
         light: parseFloat(document.getElementById('light').value),
         co2: parseFloat(document.getElementById('co2').value),
         humidity_ratio: parseFloat(document.getElementById('humidity_ratio').value)
     };
-    
+}
+
+function validateInputs() {
+    return fields.every(id => {
+        const value = parseFloat(document.getElementById(id).value);
+        return Number.isFinite(value);
+    });
+}
+
+function updatePredictButton() {
+    const isValid = validateInputs();
+    predictButton.disabled = !isValid;
+    predictButton.style.opacity = isValid ? '1' : '0.7';
+    predictionStatus.textContent = isValid ? 'Listo para predecir con XGBoost.' : 'Completa todos los campos para habilitar la predicción.';
+}
+
+fields.forEach(id => {
+    document.getElementById(id).addEventListener('input', updatePredictButton);
+});
+
+updatePredictButton();
+
+function renderWarnings(data) {
+    const warnings = [];
+    if (data.co2 > 1000) {
+        warnings.push('El CO2 es alto: considera ventilar la habitación.');
+    }
+    if (data.humidity < 30 || data.humidity > 60) {
+        warnings.push('La humedad está fuera del rango recomendado.');
+    }
+    return warnings;
+}
+
+predictionForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (!validateInputs()) {
+        return;
+    }
+
+    const formData = getFormData();
+    predictButton.disabled = true;
+    predictButton.innerHTML = 'Prediciendo <span class="spinner-inline"></span>';
+    predictionStatus.textContent = 'Analizando con XGBoost...';
+
     try {
         const response = await fetch('/prediction/predict', {
             method: 'POST',
@@ -58,25 +107,31 @@ document.getElementById('predictionForm').addEventListener('submit', async (e) =
         });
         const data = await response.json().catch(() => null);
         if (!response.ok || data?.error || data?.detail) {
-            alert('Error al realizar la predicción: ' + ((data && (data.error || data.detail)) || response.statusText));
-            return;
+            throw new Error((data && (data.error || data.detail)) || response.statusText);
         }
-        
-        const resultDiv = document.getElementById('result');
-        resultDiv.style.display = 'block';
-        
+
         const status = data.occupied ? 'Ocupado' : 'No ocupado';
         const cssClass = data.occupied ? 'occupied' : 'not-occupied';
         const prob = data.probability ? (data.probability * 100).toFixed(2) : 'N/A';
-        
+        const warnings = renderWarnings(formData);
+
+        resultDiv.style.display = 'block';
         resultDiv.className = `result ${cssClass}`;
         resultDiv.innerHTML = `
             <h3>Resultado de la Predicción</h3>
             <p style="font-size: 24px; font-weight: bold;">Estado de la Habitación: ${status}</p>
-            <p>Confianza: ${prob}%</p>
+            <p>Modelo usado: <strong>XGBoost</strong></p>
+            <p>Confianza: <strong>${prob}%</strong></p>
+            ${warnings.length ? `<ul class="warning-list">${warnings.map(w => `<li>${w}</li>`).join('')}</ul>` : ''}
         `;
+        predictionStatus.textContent = 'Predicción completada.';
     } catch (error) {
         alert('Error al realizar la predicción: ' + error.message);
+        predictionStatus.textContent = 'Ocurrió un error. Intenta nuevamente.';
+    } finally {
+        predictButton.disabled = false;
+        predictButton.innerHTML = 'Predecir';
+        updatePredictButton();
     }
 });
 </script>

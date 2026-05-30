@@ -20,6 +20,7 @@ class ComparisonRequest(BaseModel):
     co2: float
     humidity_ratio: float
     model: Optional[str] = None
+    models: Optional[List[str]] = None
 
 
 @router.get("/", response_class=HTMLResponse)
@@ -47,7 +48,11 @@ async def compare_predict(request: ComparisonRequest):
         if not all_models:
             raise ValueError("No models loaded. Please place your .joblib files in the local models/ folder.")
         
-        if request.model:
+        if request.models:
+            for model_name in request.models:
+                model = registry.get(model_name)
+                results[model_name] = model.predict(features)
+        elif request.model:
             model = registry.get(request.model)
             results[request.model] = model.predict(features)
         else:
