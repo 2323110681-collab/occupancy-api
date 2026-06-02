@@ -20,6 +20,7 @@
         <button type="button" class="model-btn secondary" onclick="compareSelectedModels()">Comparar 1 o 2 Modelos</button>
         <div id="selectedModelsInfo" style="font-weight: 600; color: var(--muted);">Selecciona uno o más modelos</div>
     </div>
+    <div id="comparisonStatus" class="status-chip info" style="display: none;" role="status" aria-live="polite"></div>
     
     <form id="comparisonForm">
         <div class="grid">
@@ -66,6 +67,18 @@
     </div>
 </div>
 
+<div id="loadingOverlay" class="loading-overlay" aria-hidden="true">
+    <div class="loading-card">
+        <div class="spinner"></div>
+        <h3 id="loadingStage" style="margin-top: 18px;">Cargando modelo...</h3>
+        <p id="loadingMessage" style="color: var(--muted); margin: 12px 0 0;">Por favor espera mientras preparamos la comparación.</p>
+        <div class="progress-container">
+            <div id="progressBar" class="progress-bar"></div>
+        </div>
+        <div class="progress-label" id="progressLabel">Preparando comparación...</div>
+    </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
 const modelNames = {
@@ -93,6 +106,57 @@ function validateFormData(data) {
 }
 
 let selectedModels = new Set();
+let progressInterval;
+
+function setProgress(value) {
+    const progressBar = document.getElementById('progressBar');
+    if (progressBar) {
+        progressBar.style.width = `${value}%`;
+    }
+}
+
+function setLoadingStage(stageText, labelText, value) {
+    const stage = document.getElementById('loadingStage');
+    const label = document.getElementById('progressLabel');
+    if (stage) stage.textContent = stageText;
+    if (label) label.textContent = labelText;
+    setProgress(value);
+}
+
+function setStatus(message, type = 'info') {
+    const statusChip = document.getElementById('comparisonStatus');
+    if (!statusChip) return;
+    statusChip.textContent = message;
+    statusChip.className = 'status-chip ' + type;
+    statusChip.style.display = 'inline-flex';
+}
+
+function showLoading() {
+    const overlay = document.getElementById('loadingOverlay');
+    if (!overlay) return;
+    overlay.classList.add('active');
+    document.querySelector('.model-btn.secondary')?.classList.add('button-animated');
+    setLoadingStage('Cargando modelos...', 'Iniciando comparación...', 10);
+    let current = 10;
+    progressInterval = setInterval(() => {
+        if (current < 85) {
+            current += 6;
+            setProgress(current);
+        }
+    }, 220);
+    setTimeout(() => setLoadingStage('Evaluando predicciones...', 'Procesando modelos...', 45), 900);
+    setTimeout(() => setLoadingStage('Generando comparación...', 'Casi listo...', 1800), 1800);
+}
+
+function hideLoading() {
+    clearInterval(progressInterval);
+    setProgress(100);
+    setTimeout(() => {
+        document.getElementById('loadingOverlay')?.classList.remove('active');
+        document.querySelector('.model-btn.secondary')?.classList.remove('button-animated');
+        setProgress(0);
+    }, 300);
+}
 
 function toggleModel(model) {
     const button = document.querySelector(`button[onclick="toggleModel('${model}')"]`);
@@ -134,6 +198,8 @@ async function compareSelectedModels() {
 
 async function sendComparisonRequest(data) {
     try {
+        setStatus('Preparando modelos...', 'info');
+        showLoading();
         const response = await fetch('/comparison/predict', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
@@ -152,18 +218,19 @@ async function sendComparisonRequest(data) {
             } else if (result?.error) {
                 message = result.error;
             }
-            alert('Error: ' + message);
-            return;
+            throw new Error(message);
         }
 
         if (result?.error) {
-            alert('Error: ' + result.error);
-            return;
+            throw new Error(result.error);
         }
 
         displayResult(result);
+        setStatus('Comparación completada con éxito.', 'success');
     } catch (error) {
-        alert('Error: ' + error.message);
+        setStatus('Error al comparar modelos: ' + error.message, 'error');
+    } finally {
+        hideLoading();
     }
 }
 
