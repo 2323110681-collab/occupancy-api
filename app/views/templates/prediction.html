@@ -32,13 +32,71 @@
                 <input type="number" step="any" id="humidity_ratio" name="humidity_ratio" required placeholder="e.j., 0.0092">
             </div>
         </div>
-        <button type="submit">Predecir</button>
+        <button type="submit" id="predictButton">Predecir</button>
     </form>
+    <div id="predictionStatus" class="status-chip info" style="display: none;" role="status" aria-live="polite"></div>
     
+    <div id="loadingOverlay" class="loading-overlay" aria-hidden="true">
+        <div class="loading-card">
+            <div class="spinner"></div>
+            <h3 id="loadingStage" style="margin-top: 18px;">Preparando modelo...</h3>
+            <p id="loadingMessage" style="color: var(--muted); margin: 12px 0 0;">Por favor espera mientras realizamos la predicción.</p>
+            <div class="progress-container">
+                <div id="progressBar" class="progress-bar"></div>
+            </div>
+            <div class="progress-label" id="progressLabel">Cargando modelo...</div>
+        </div>
+    </div>
+
     <div id="result" style="display: none;"></div>
 </div>
 
 <script>
+function setProgress(value) {
+    const progressBar = document.getElementById('progressBar');
+    progressBar.style.width = `${value}%`;
+}
+
+let progressInterval;
+
+function setLoadingStage(stageText, labelText, value) {
+    document.getElementById('loadingStage').textContent = stageText;
+    document.getElementById('progressLabel').textContent = labelText;
+    setProgress(value);
+}
+
+function setStatus(message, type = 'info') {
+    const statusChip = document.getElementById('predictionStatus');
+    statusChip.textContent = message;
+    statusChip.className = 'status-chip ' + type;
+    statusChip.style.display = 'inline-flex';
+}
+
+function showLoading() {
+    document.getElementById('loadingOverlay').classList.add('active');
+    document.getElementById('predictButton').classList.add('button-animated');
+    setLoadingStage('Cargando modelo...', 'Iniciando predicción...', 10);
+    let current = 10;
+    progressInterval = setInterval(() => {
+        if (current < 85) {
+            current += 6;
+            setProgress(current);
+        }
+    }, 220);
+    setTimeout(() => setLoadingStage('Procesando entradas...', 'Evaluando características...', 45), 900);
+    setTimeout(() => setLoadingStage('Generando resultado...', 'Casi listo...', 1800), 1800);
+}
+
+function hideLoading() {
+    clearInterval(progressInterval);
+    setProgress(100);
+    setTimeout(() => {
+        document.getElementById('loadingOverlay').classList.remove('active');
+        document.getElementById('predictButton').classList.remove('button-animated');
+        setProgress(0);
+    }, 300);
+}
+
 document.getElementById('predictionForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     
@@ -51,6 +109,8 @@ document.getElementById('predictionForm').addEventListener('submit', async (e) =
     };
     
     try {
+        setStatus('Preparando modelo...', 'info');
+        showLoading();
         const response = await fetch('/prediction/predict', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
@@ -58,25 +118,24 @@ document.getElementById('predictionForm').addEventListener('submit', async (e) =
         });
         const data = await response.json().catch(() => null);
         if (!response.ok || data?.error || data?.detail) {
-            alert('Error al realizar la predicción: ' + ((data && (data.error || data.detail)) || response.statusText));
-            return;
+            throw new Error((data && (data.error || data.detail)) || response.statusText);
         }
-        
         const resultDiv = document.getElementById('result');
         resultDiv.style.display = 'block';
-        
         const status = data.occupied ? 'Ocupado' : 'No ocupado';
         const cssClass = data.occupied ? 'occupied' : 'not-occupied';
         const prob = data.probability ? (data.probability * 100).toFixed(2) : 'N/A';
-        
         resultDiv.className = `result ${cssClass}`;
         resultDiv.innerHTML = `
             <h3>Resultado de la Predicción</h3>
             <p style="font-size: 24px; font-weight: bold;">Estado de la Habitación: ${status}</p>
             <p>Confianza: ${prob}%</p>
         `;
+        setStatus('Predicción completada con éxito.', 'success');
     } catch (error) {
-        alert('Error al realizar la predicción: ' + error.message);
+        setStatus('Error al realizar la predicción: ' + error.message, 'error');
+    } finally {
+        hideLoading();
     }
 });
 </script>
